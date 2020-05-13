@@ -12,7 +12,7 @@ CONCORD_PROFILE=${CONCORD_DOTDIR}/profile
 # ------------------------------------------------------------------------------
 OS_NAME=`uname -s`
 IS_WIN=false
-OPEN_CMD=open
+IS_MAC=false
 
 # Customize commands and variables depending on OS
 if [ "${OS_NAME}" = "Linux" ];
@@ -22,6 +22,10 @@ elif [[ "${OS_NAME}" = "CYGWIN"* ]];
 then
   OPEN_CMD=cygstart
   IS_WIN=true
+elif [[ "${OS_NAME}" = "Darwin"* ]];
+then
+  OPEN_CMD=open
+  IS_MAC=true
 fi
 
 # Running minikube locally for development so determine the host and port by asking minikube
@@ -48,6 +52,10 @@ SERVER_CONFIGURATION_RELATIVE_PATH="/server.conf"
 # Agent configuration
 AGENT_CONFIGURATION_TEMPLATE="${DIR}/concord/templates/agent.conf.template"
 AGENT_CONFIGURATION_RELATIVE_PATH="/agent.conf"
+
+# Maven repo configuration
+MAVEN_REPO_CONFIGURATION_TEMPLATE="${DIR}/concord/templates/mvn.json.template"
+MAVEN_REPO_CONFIGURATION_RELATIVE_PATH="mvn.json"
 
 # ------------------------------------------------------------------------------
 # Database configuration
@@ -153,12 +161,29 @@ concord_server() {
   $IS_WIN && SERVER_CONFIGURATION_MOUNT="$(concord_win_dir $SERVER_CONFIGURATION_MOUNT)"
   DOCKER_CONFIGURATION_MOUNT_TARGET="/concord/conf/${SERVER_CONFIGURATION_RELATIVE_PATH}"
 
+  MAVEN_REPO_CONFIGURATION_MOUNT="${CONFIGURATION_TEMPLATE_OUTPUT_DIR}/${MAVEN_REPO_CONFIGURATION_RELATIVE_PATH}"
+  cp $MAVEN_REPO_CONFIGURATION_TEMPLATE $MAVEN_REPO_CONFIGURATION_MOUNT
+  $IS_WIN && MAVEN_REPO_CONFIGURATION_MOUNT="$(concord_win_dir $MAVEN_REPO_CONFIGURATION_MOUNT)"
+  MAVEN_REPO_CONFIGURATION_MOUNT_TARGET="/concord/conf/${MAVEN_REPO_CONFIGURATION_RELATIVE_PATH}"
+
+  if [ ! -z "${useHostDockerDaemon}" -a "${useHostDockerDaemon}" = "true" ]
+  then
+    local homeMount=${HOME}
+    $IS_WIN && homeMount="$(concord_win_dir ${homeMount})"
+    localMavenRepoMount="-v ${homeMount}/.m2/repository:/home/concord/.m2/repository"
+  else
+    localMavenRepoMount=""
+  fi
+
   docker run -d \
   -p $PORT:8001 \
   --name server \
   --link ${CONCORD_DB_NAME} \
+  ${localMavenRepoMount} \
   -v ${SERVER_CONFIGURATION_MOUNT}:${DOCKER_CONFIGURATION_MOUNT_TARGET} \
+  -v ${MAVEN_REPO_CONFIGURATION_MOUNT}:${MAVEN_REPO_CONFIGURATION_MOUNT_TARGET} \
   -e CONCORD_CFG_FILE=${DOCKER_CONFIGURATION_MOUNT_TARGET} \
+  -e CONCORD_MAVEN_CFG=${MAVEN_REPO_CONFIGURATION_MOUNT_TARGET} \
   ${CONCORD_DOCKER_NAMESPACE}/concord-server:${CONCORD_VERSION}
 
   echo
@@ -206,6 +231,7 @@ concord_agent() {
     SERVER_WEBSOCKET_URL=ws://localhost:${PORT}/websocket
     NETWORK_OPTIONS="--net=host"
     useLocalMavenRepoWithAgent="true"
+    $IS_MAC && ./05-tcp-dock-host-mac.sh
   else
     DOCKER_HOST_PATH=${DIND_HOST_PATH}
     CONCORD_DOCKER_LOCAL_MODE=false
@@ -224,6 +250,7 @@ concord_agent() {
     localMavenRepoMount=""
   fi
 
+  # With DinD
   if [ ! -z "${useLocalMavenRepoWithDocker}" -a "${useLocalMavenRepoWithDocker}" = "true" ]
   then
 
@@ -260,12 +287,19 @@ concord_agent() {
     mountLocalConfigs=""
   fi
 
+  MAVEN_REPO_CONFIGURATION_MOUNT="${CONFIGURATION_TEMPLATE_OUTPUT_DIR}/${MAVEN_REPO_CONFIGURATION_RELATIVE_PATH}"
+  cp $MAVEN_REPO_CONFIGURATION_TEMPLATE $MAVEN_REPO_CONFIGURATION_MOUNT
+  $IS_WIN && MAVEN_REPO_CONFIGURATION_MOUNT="$(concord_win_dir $MAVEN_REPO_CONFIGURATION_MOUNT)"
+  MAVEN_REPO_CONFIGURATION_MOUNT_TARGET="/concord/conf/${MAVEN_REPO_CONFIGURATION_RELATIVE_PATH}"
+
   docker run -d \
   --name agent \
   -v "/tmp:/tmp" \
   ${localMavenRepoMount} \
   ${mavenRepoForDocker} \
   ${mountLocalConfigs} \
+  -v ${MAVEN_REPO_CONFIGURATION_MOUNT}:${MAVEN_REPO_CONFIGURATION_MOUNT_TARGET} \
+  -e CONCORD_MAVEN_CFG=${MAVEN_REPO_CONFIGURATION_MOUNT_TARGET} \
   -e CONCORD_DOCKER_LOCAL_MODE=${CONCORD_DOCKER_LOCAL_MODE} \
   -e DOCKER_HOST=${DOCKER_HOST} \
   -e SERVER_API_BASE_URL=${SERVER_API_BASE_URL} \

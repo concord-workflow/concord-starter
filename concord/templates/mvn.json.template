@@ -1,0 +1,24 @@
+{
+  "repositories": [
+    {
+      "id": "central",
+      "url": "https://repo1.maven.org/maven2/"
+    },
+    {
+      "id": "sonatype",
+      "url": "https://oss.sonatype.org/content/repositories/snapshots",
+      "snapshotPolicy": {
+        "enabled": true,
+        "updatePolicy": "always"
+      }
+    },
+    {
+      "id": "host",
+      "url": "file:///home/concord/.m2/repository",
+      "snapshotPolicy": {
+        "enabled": true,
+        "updatePolicy": "always"
+      }
+    }
+  ]
+}
