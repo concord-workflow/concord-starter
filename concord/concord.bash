@@ -175,11 +175,16 @@ concord_server() {
     localMavenRepoMount=""
   fi
 
+  if [ ! -z "${useServerExtDirectory}" ]; then
+    serverExtDirectoryMount="-v ${useServerExtDirectory}:/opt/concord/server/ext"
+  fi
+
   docker run -d \
   -p $PORT:8001 \
   --name server \
   --link ${CONCORD_DB_NAME} \
   ${localMavenRepoMount} \
+  ${serverExtDirectoryMount} \
   -v ${SERVER_CONFIGURATION_MOUNT}:${DOCKER_CONFIGURATION_MOUNT_TARGET} \
   -v ${MAVEN_REPO_CONFIGURATION_MOUNT}:${MAVEN_REPO_CONFIGURATION_MOUNT_TARGET} \
   -e CONCORD_CFG_FILE=${DOCKER_CONFIGURATION_MOUNT_TARGET} \
