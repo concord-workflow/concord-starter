@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+source $HOME/.concord/concord.bash
+
+curl -v \
+  -H "Authorization: ${CONCORD_API_TOKEN}" \
+  -X GET http://localhost:8080/api/v1/k8s/cluster/info
