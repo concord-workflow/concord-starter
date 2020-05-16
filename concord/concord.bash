@@ -179,6 +179,15 @@ concord_server() {
     serverExtDirectoryMount="-v ${useServerExtDirectory}:/opt/concord/server/ext"
   fi
 
+  # Allow a custom server image
+  if [ ! -z "${CONCORD_SERVER_IMAGE}" ]; then
+    SERVER_IMAGE="${CONCORD_SERVER_IMAGE}"
+  else
+    SERVER_IMAGE="${CONCORD_DOCKER_NAMESPACE}/concord-server:${CONCORD_VERSION}"
+  fi
+
+  echo "Using server image = ${SERVER_IMAGE}"
+
   docker run -d \
   -p $PORT:8001 \
   --name server \
@@ -189,7 +198,7 @@ concord_server() {
   -v ${MAVEN_REPO_CONFIGURATION_MOUNT}:${MAVEN_REPO_CONFIGURATION_MOUNT_TARGET} \
   -e CONCORD_CFG_FILE=${DOCKER_CONFIGURATION_MOUNT_TARGET} \
   -e CONCORD_MAVEN_CFG=${MAVEN_REPO_CONFIGURATION_MOUNT_TARGET} \
-  ${CONCORD_DOCKER_NAMESPACE}/concord-server:${CONCORD_VERSION}
+  ${SERVER_IMAGE}
 
   echo
   echo -n "Waiting for the server to start by checking http://${CONCORD_HOST_PORT}/api/v1/server/ping ..."
