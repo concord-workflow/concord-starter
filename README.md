@@ -1,3 +1,5 @@
+**NOTE: This repository is deprecated. Current work is being done in https://github.com/concord-workflow/concord-k8s-system repository.**
+
 # Concord Starter
 
 This provides an initial setup for Concord that will allow you to learn, experiment, demo, and provision resources to public clouds from your local machine.
